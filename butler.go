@@ -9,31 +9,38 @@ import (
 )
 
 func main() {
-	go trackReps()
+	go trackUpdates()
 	go serveBuilds()
 	select {}
 }
 
-func trackReps() {
+// trackUpdates continuously updates the projects directory
+// and makes new builds.
+func trackUpdates() {
 	for {
 		projects, err := listProjects()
 		if err != nil {
+			// If something went wrong while trying to get the list of
+			// projects, wait a little before trying again.
 			log.Printf("failed to get projects list: %v", err)
-			time.Sleep(10 * time.Second)
+			time.Sleep(60 * time.Second)
 			continue
 		}
 
 		for _, project := range projects {
-			log.Printf("Project: %v", project)
+			log.Printf("Project: %s", project.name)
 			err := project.update()
 			if err != nil {
 				log.Fatal(err)
 			}
 		}
+
+		// Sleep a while and repeat the whole thing again.
 		time.Sleep(10 * time.Second)
 	}
 }
 
+// serveBuilds spawns an HTTP server that serves all builds for all projects.
 func serveBuilds() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hey there")

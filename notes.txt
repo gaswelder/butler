@@ -1,0 +1,12 @@
+TAG=$(git describe --tags --abbrev=0)
+TAG_VERSION=$(echo ${TAG} | cut -d "-" -f 1)
+
+APP_VERSION // 1.1.0
+APP_VERSION_DASH // 7
+BUNDLE_VERSION=$(echo ${TAG} | cut -d "-" -f 2)
+TAG_VERSION=$(echo ${TAG} | cut -d "-" -f 1)
+
+APP_VERSION_ID // 1.1.0-135-f10dsfsd
+
+PROJECT_ID="com.foo.bar"
+PROJECT_NAME="My app"
