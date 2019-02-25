@@ -42,39 +42,6 @@ func listProjects() ([]*project, error) {
 	return result, nil
 }
 
-func getProject(name string) *project {
-	dir := "projects/" + name
-	if !exists(dir) {
-		return nil
-	}
-	return &project{
-		name: name,
-		dir:  dir,
-	}
-}
-
-// builds returns a list of the project's builds.
-func (p *project) builds() ([]*build, error) {
-	f, err := os.Open(p.dir + "/builds")
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	ls, err := f.Readdir(-1)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*build, len(ls))
-	for i, l := range ls {
-		result[i] = &build{
-			path: p.dir + "/builds/" + l.Name(),
-		}
-	}
-	return result, nil
-}
-
 func (p *project) latestBuildID(branch string) (string, error) {
 	path := fmt.Sprintf("%s/latest-%s", p.dir, branch)
 	b, err := ioutil.ReadFile(path)
