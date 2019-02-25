@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 
 	"github.com/gaswelder/butler/builders"
+	"github.com/gaswelder/butler/server"
 )
 
 func (p *project) update() error {
@@ -66,8 +66,7 @@ func (p *project) update() error {
 			}
 
 			// Publish the builds
-			pubDir := fmt.Sprintf("%s/builds/%s/%s", p.dir, branch, latestSourceID)
-			err = copyFiles(files, pubDir)
+			err = server.Publish(p.dir, branch, latestSourceID, files)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -123,20 +122,4 @@ func scanProject(sourceDir string) ([]builders.Builder, error) {
 		}
 	}
 	return bs, nil
-}
-
-func copyFiles(paths []string, to string) error {
-	if !exists(to) {
-		err := os.MkdirAll(to, 0777)
-		if err != nil {
-			return err
-		}
-	}
-	for _, f := range paths {
-		err := run(".", "cp", f, to+"/"+path.Base(f))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
