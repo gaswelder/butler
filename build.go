@@ -50,25 +50,28 @@ func (p *project) update() error {
 			return nil
 		}
 
-		// Find a builder for this kind of project.
-		builder, err := builders.Find(sourceDir)
+		// One source root may have multiple buildable things (monorepo).
+		bs, err := scanProject(sourceDir)
 		if err != nil {
-			log.Println(err)
-			continue
+			return err
+		}
+		for _, builder := range bs {
+			log.Printf("%s -> %s", builder.Dirname(), builder.Name())
 		}
 
-		files, err := builder.Build()
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+		for _, builder := range bs {
+			files, err := builder.Build()
+			if err != nil {
+				return err
+			}
 
-		// Publish the builds
-		pubDir := fmt.Sprintf("%s/builds/%s/%s", p.dir, branch, latestSourceID)
-		err = copyFiles(files, pubDir)
-		if err != nil {
-			log.Println(err)
-			continue
+			// Publish the builds
+			pubDir := fmt.Sprintf("%s/builds/%s/%s", p.dir, branch, latestSourceID)
+			err = copyFiles(files, pubDir)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 		}
 
 		// Update the latest mark.
@@ -79,6 +82,47 @@ func (p *project) update() error {
 	}
 
 	return nil
+}
+
+func scanProject(sourceDir string) ([]builders.Builder, error) {
+	// Check if this is a one-project source.
+	builder, err := builders.Find(sourceDir)
+	if err != nil {
+		return nil, err
+	}
+	if builder != nil {
+		return []builders.Builder{builder}, nil
+	}
+
+	// If not, then we might have multiple projects.
+	dir, err := os.Open(sourceDir)
+	if err != nil {
+		return nil, err
+	}
+	defer dir.Close()
+
+	ls, err := dir.Readdir(-1)
+	if err != nil {
+		return nil, err
+	}
+
+	bs := make([]builders.Builder, 0)
+	for _, f := range ls {
+		if !f.IsDir() {
+			continue
+		}
+		if f.Name()[0] == '.' {
+			continue
+		}
+		builder, err := builders.Find(sourceDir + "/" + f.Name())
+		if err != nil {
+			return nil, err
+		}
+		if builder != nil {
+			bs = append(bs, builder)
+		}
+	}
+	return bs, nil
 }
 
 func copyFiles(paths []string, to string) error {

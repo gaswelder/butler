@@ -40,3 +40,13 @@ func (a *AndroidBuilder) Build() ([]string, error) {
 	}
 	return paths, nil
 }
+
+// Name returns the builder's name.
+func (a *AndroidBuilder) Name() string {
+	return "Android"
+}
+
+// Dirname returns the builder's project path.
+func (a *AndroidBuilder) Dirname() string {
+	return a.projectDir
+}

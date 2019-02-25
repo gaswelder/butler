@@ -24,3 +24,13 @@ func (b *ReactNativeBuilder) Build() ([]string, error) {
 	paths, err := b.android.Build()
 	return paths, err
 }
+
+// Name returns the builder's name.
+func (b *ReactNativeBuilder) Name() string {
+	return "React Native"
+}
+
+// Dirname returns the builder's project path.
+func (b *ReactNativeBuilder) Dirname() string {
+	return b.projectDir
+}
