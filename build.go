@@ -10,15 +10,12 @@ import (
 )
 
 func (p *project) update() error {
-	if p.name == "bogan" {
-		return nil
-	}
 	sourceDir := fmt.Sprintf("%s/src", p.dir)
 
 	g := git{sourceDir: sourceDir}
 
 	// Update the source.
-	err := g.pull()
+	err := g.fetch()
 	if err != nil {
 		return err
 	}
@@ -27,10 +24,14 @@ func (p *project) update() error {
 	if err != nil {
 		return err
 	}
-	log.Println(branches)
+	log.Println("branches:", branches)
 
 	for _, branch := range branches {
 		err := g.checkout(branch)
+		if err != nil {
+			return err
+		}
+		err = g.pull()
 		if err != nil {
 			return err
 		}
