@@ -50,7 +50,7 @@ func (p *project) update() error {
 		}
 
 		// Find a builder for this kind of project.
-		builder, err := findBuilder(sourceDir)
+		builder, err := builders.Find(sourceDir)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -78,11 +78,6 @@ func (p *project) update() error {
 	}
 
 	return nil
-}
-
-func findBuilder(sourceDir string) (builders.Builder, error) {
-	// Just return a React Native builder for now.
-	return builders.ReactNative(sourceDir), nil
 }
 
 func copyFiles(paths []string, to string) error {
