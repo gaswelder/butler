@@ -4,12 +4,47 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gaswelder/butler/builders"
-	"github.com/gaswelder/butler/server"
 )
 
-func (p *project) update() error {
+type build struct {
+	path string
+}
+
+func (b *build) url() string {
+	return b.path
+}
+
+// trackUpdates continuously updates the projects directory
+// and makes new builds.
+func trackUpdates() {
+	for {
+		projects, err := listProjects()
+		if err != nil {
+			// If something went wrong while trying to get the list of
+			// projects, wait a little before trying again.
+			log.Printf("failed to get projects list: %v", err)
+			time.Sleep(60 * time.Second)
+			continue
+		}
+
+		for _, project := range projects {
+			log.Printf("Project: %s", project.name)
+			err := update(project)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		// Sleep a while and repeat the whole thing again.
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// update updates all builds for the given project.
+func update(p *project) error {
 	sourceDir := fmt.Sprintf("%s/src", p.dir)
 
 	g := git{sourceDir: sourceDir}
@@ -35,7 +70,6 @@ func (p *project) update() error {
 		if err != nil {
 			return err
 		}
-
 		latestSourceID, err := g.describe()
 		if err != nil {
 			return err
@@ -47,43 +81,61 @@ func (p *project) update() error {
 		log.Printf("branch: %s, latest source: %s, latest build: %s", branch, latestSourceID, latestBuildID)
 		if latestBuildID == latestSourceID {
 			log.Print("Nothing new, skipping")
-			return nil
+			continue
 		}
 
-		// One source root may have multiple buildable things (monorepo).
-		bs, err := scanProject(sourceDir)
+		files, err := runBuilds(sourceDir)
 		if err != nil {
-			return err
-		}
-		for _, builder := range bs {
-			log.Printf("%s -> %s", builder.Dirname(), builder.Name())
+			log.Println(err)
+			continue
 		}
 
-		for _, builder := range bs {
-			files, err := builder.Build()
-			if err != nil {
-				return err
-			}
-
-			// Publish the builds
-			err = server.Publish(p.dir, branch, latestSourceID, files)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
+		// Publish the builds
+		err = publish(p.dir, branch, latestSourceID, files)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
 
 		// Update the latest mark.
 		err = p.setLatestBuildID(branch, latestSourceID)
 		if err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
 	}
 
 	return nil
 }
 
-func scanProject(sourceDir string) ([]builders.Builder, error) {
+// runBuilds builds everything in the given source directory and returns
+// a list of build outputs.
+func runBuilds(sourceDir string) ([]string, error) {
+	// Get builders for this project.
+	bs, err := detectBuilders(sourceDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not get project builders: %s", err.Error())
+	}
+	if len(bs) == 0 {
+		return nil, fmt.Errorf("no builders detected")
+	}
+	for _, builder := range bs {
+		log.Printf("%s -> %s", builder.Dirname(), builder.Name())
+	}
+
+	allFiles := make([]string, 0)
+	for _, builder := range bs {
+		files, err := builder.Build()
+		if err != nil {
+			return nil, err
+		}
+		allFiles = append(allFiles, files...)
+	}
+	return allFiles, nil
+}
+
+// detectBuilders returns a list of builders needed for the given source directory.
+func detectBuilders(sourceDir string) ([]builders.Builder, error) {
 	// Check if this is a one-project source.
 	builder, err := builders.Find(sourceDir)
 	if err != nil {

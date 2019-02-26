@@ -6,14 +6,6 @@ import (
 	"os"
 )
 
-type build struct {
-	path string
-}
-
-func (b *build) url() string {
-	return b.path
-}
-
 type project struct {
 	name string
 	dir  string
