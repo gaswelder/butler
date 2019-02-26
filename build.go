@@ -62,7 +62,13 @@ func update(p *project) error {
 	log.Println("branches:", branches)
 
 	for _, branch := range branches {
-		err := g.checkout(branch)
+		// Builds on previous branches might change the source tree, so
+		// we have to do a reset.
+		err := g.discard()
+		if err != nil {
+			return err
+		}
+		err = g.checkout(branch)
 		if err != nil {
 			return err
 		}

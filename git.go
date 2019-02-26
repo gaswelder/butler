@@ -14,6 +14,10 @@ func (g git) fetch() error {
 	return run(g.sourceDir, "git", "fetch")
 }
 
+func (g git) discard() error {
+	return run(g.sourceDir, "git", "checkout", ".")
+}
+
 // branches returns a list of remote branches in this repository.
 func (g git) branches() ([]string, error) {
 	out, err := runOut(g.sourceDir, "git", "branch", "-r")
