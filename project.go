@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 )
 
@@ -32,21 +31,4 @@ func listProjects() ([]*project, error) {
 		}
 	}
 	return result, nil
-}
-
-func (p *project) latestBuildID(branch string) (string, error) {
-	path := fmt.Sprintf("%s/latest-%s", p.dir, branch)
-	b, err := ioutil.ReadFile(path)
-	if os.IsNotExist(err) {
-		return "(no build)", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
-func (p *project) setLatestBuildID(branch, id string) error {
-	path := fmt.Sprintf("%s/latest-%s", p.dir, branch)
-	return ioutil.WriteFile(path, []byte(id), 0666)
 }

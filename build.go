@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
 	"time"
 
 	"github.com/gaswelder/butler/builders"
@@ -82,7 +81,7 @@ func update(p *project) error {
 		if err != nil {
 			return err
 		}
-		latestBuildID, err := p.latestBuildID(branch)
+		latestBuildID, err := latestBuildID(p.name, branch)
 		if err != nil {
 			return err
 		}
@@ -92,13 +91,7 @@ func update(p *project) error {
 			continue
 		}
 
-		logPath := p.dir + "/builds/" + branch + "/" + latestSourceID + ".log"
-		err = os.MkdirAll(path.Dir(logPath), 0777)
-		if err != nil {
-			return err
-		}
-
-		logger, err := os.Create(logPath)
+		logger, err := buildLogger(p.name, branch, latestSourceID)
 		if err != nil {
 			return err
 		}
@@ -113,7 +106,7 @@ func update(p *project) error {
 		}
 
 		// Update the latest mark.
-		err = p.setLatestBuildID(branch, latestSourceID)
+		err = setLatestBuildID(p.name, branch, latestSourceID)
 		if err != nil {
 			log.Println(err)
 			continue

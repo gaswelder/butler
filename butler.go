@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	go trackUpdates()
+	// go trackUpdates()
 	go serveBuilds()
 	select {}
 }
