@@ -10,13 +10,25 @@ import (
 	"strings"
 )
 
+func versionsPath(project, branch string) string {
+	return "projects/" + project + "/builds/" + safeString(branch)
+}
+
+func buildsPath(project, branch, version string) string {
+	return versionsPath(project, branch) + "/" + safeString(version)
+}
+
 func buildLogger(projectName, branch, sourceID string) (io.WriteCloser, error) {
-	logPath := "projects/" + projectName + "/builds/" + safeString(branch) + "/" + safeString(sourceID) + ".log"
+	logPath := versionsPath(projectName, branch) + "/" + safeString(sourceID) + "/build.log"
 	err := os.MkdirAll(path.Dir(logPath), 0777)
 	if err != nil {
 		return nil, err
 	}
 	return os.Create(logPath)
+}
+
+func buildFile(project, branch, version, file string) (io.ReadCloser, error) {
+	return os.Open(buildsPath(project, branch, version) + "/" + safeString(file))
 }
 
 // publish publishes the given array of builds on the webserver.
@@ -26,7 +38,7 @@ func publish(projectDir, branch, sourceID string, files []string) error {
 }
 
 func branchesList(projectName string) ([]string, error) {
-	dirs, err := ls("projects/" + projectName + "/builds")
+	dirs, err := lsd("projects/" + projectName + "/builds")
 	if err != nil {
 		return nil, err
 	}
@@ -55,29 +67,33 @@ func setLatestBuildID(projectName, branch, id string) error {
 	return ioutil.WriteFile(path, []byte(id), 0666)
 }
 
-func buildsList(projectName, branch string) ([]*build, error) {
-	buildDirs, err := ls("projects/" + projectName + "/builds/" + safeString(branch))
+func baseNames(paths []string) []string {
+	names := make([]string, len(paths))
+	for i, p := range paths {
+		names[i] = path.Base(p)
+	}
+	return names
+}
+
+func versionsList(project, branch string) ([]string, error) {
+	l, err := lsd(versionsPath(project, branch))
 	if err != nil {
 		return nil, err
 	}
+	return baseNames(l), nil
+}
 
-	result := make([]*build, 0)
-	for _, path := range buildDirs {
-		files, err := ls(path)
-		if err != nil {
-			return nil, err
-		}
-		for _, file := range files {
-			result = append(result, &build{
-				path: file,
-			})
-		}
+func buildsList(project, branch, version string) ([]string, error) {
+	files, err := lsf(buildsPath(project, branch, version))
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+	return baseNames(files), nil
 }
 
 func isSafeChar(ch rune) bool {
-	return (ch >= '0' && ch <= '9') ||
+	return ch == '.' ||
+		(ch >= '0' && ch <= '9') ||
 		(ch >= 'A' && ch <= 'Z') ||
 		(ch >= 'a' && ch <= 'z')
 }
@@ -94,7 +110,19 @@ func safeString(name string) string {
 	return b.String()
 }
 
-func ls(dir string) ([]string, error) {
+func lsd(dir string) ([]string, error) {
+	return ls(dir, func(f os.FileInfo) bool {
+		return f.IsDir()
+	})
+}
+
+func lsf(dir string) ([]string, error) {
+	return ls(dir, func(f os.FileInfo) bool {
+		return !f.IsDir()
+	})
+}
+
+func ls(dir string, filter func(f os.FileInfo) bool) ([]string, error) {
 	f, err := os.Open(dir)
 	if err != nil {
 		return nil, err
@@ -108,6 +136,9 @@ func ls(dir string) ([]string, error) {
 
 	result := make([]string, len(ls))
 	for i, l := range ls {
+		if !filter(l) {
+			continue
+		}
 		result[i] = dir + "/" + l.Name()
 	}
 	return result, nil
