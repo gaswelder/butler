@@ -119,7 +119,9 @@ func serveBuild(w http.ResponseWriter, project, branch, version, file string) {
 		return
 	}
 	defer f.Close()
-	w.Header().Add("Content-Type", "text/plain;charset=utf-8")
+	if strings.HasSuffix(file, ".log") {
+		w.Header().Add("Content-Type", "text/plain;charset=utf-8")
+	}
 	io.Copy(w, f)
 }
 
