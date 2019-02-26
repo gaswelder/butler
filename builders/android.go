@@ -1,6 +1,10 @@
 package builders
 
-import "os"
+import (
+	"io"
+	"os"
+	"os/exec"
+)
 
 // AndroidBuilder is a builder for Gradle-based Android projects.
 type AndroidBuilder struct {
@@ -15,10 +19,15 @@ func Android(projectDir string) Builder {
 }
 
 // Build builds the project.
-func (a *AndroidBuilder) Build() ([]string, error) {
+func (a *AndroidBuilder) Build(output io.Writer) ([]string, error) {
 	projectDir := a.projectDir
 
-	err := run(projectDir, "./gradlew", "build")
+	cmd := exec.Command("./gradlew", "build")
+	cmd.Dir = projectDir
+	cmd.Stderr = output
+	cmd.Stdout = output
+
+	err := cmd.Run()
 	if err != nil {
 		return nil, err
 	}

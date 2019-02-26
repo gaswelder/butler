@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path"
 	"time"
 
 	"github.com/gaswelder/butler/builders"
@@ -90,7 +92,19 @@ func update(p *project) error {
 			continue
 		}
 
-		files, err := runBuilds(sourceDir)
+		logPath := p.dir + "/builds/" + branch + "/" + latestSourceID + ".log"
+		err = os.MkdirAll(path.Dir(logPath), 0777)
+		if err != nil {
+			return err
+		}
+
+		logger, err := os.Create(logPath)
+		if err != nil {
+			return err
+		}
+		files, err := runBuilds(sourceDir, logger)
+		logger.Close()
+
 		if err == nil {
 			err = publish(p.dir, branch, latestSourceID, files)
 		}
@@ -111,7 +125,7 @@ func update(p *project) error {
 
 // runBuilds builds everything in the given source directory and returns
 // a list of build outputs.
-func runBuilds(sourceDir string) ([]string, error) {
+func runBuilds(sourceDir string, logger io.Writer) ([]string, error) {
 	// Get builders for this project.
 	bs, err := detectBuilders(sourceDir)
 	if err != nil {
@@ -126,7 +140,7 @@ func runBuilds(sourceDir string) ([]string, error) {
 
 	allFiles := make([]string, 0)
 	for _, builder := range bs {
-		files, err := builder.Build()
+		files, err := builder.Build(logger)
 		if err != nil {
 			return nil, err
 		}
