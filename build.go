@@ -91,16 +91,11 @@ func update(p *project) error {
 		}
 
 		files, err := runBuilds(sourceDir)
-		if err != nil {
-			log.Println(err)
-			continue
+		if err == nil {
+			err = publish(p.dir, branch, latestSourceID, files)
 		}
-
-		// Publish the builds
-		err = publish(p.dir, branch, latestSourceID, files)
 		if err != nil {
 			log.Println(err)
-			continue
 		}
 
 		// Update the latest mark.
