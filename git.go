@@ -1,9 +1,28 @@
 package main
 
-import "strings"
+import (
+	"os/exec"
+	"strings"
+)
 
 type git struct {
 	sourceDir string
+}
+
+func run(cwd string, prog string, args ...string) error {
+	c := exec.Command(prog, args...)
+	c.Dir = cwd
+	return c.Run()
+}
+
+func runOut(cwd string, prog string, args ...string) (string, error) {
+	cmd := exec.Command(prog, args...)
+	cmd.Dir = cwd
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func (g git) pull() error {
