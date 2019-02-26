@@ -67,10 +67,13 @@ func projectIndex(w http.ResponseWriter, projectName string) {
 	}
 
 	w.Header().Add("Content-Type", "text/html;charset=utf-8")
-	fmt.Fprintf(w, "<h1>%s branches</h1>", projectName)
+	fmt.Fprintf(w, "<h1>%s</h1>", projectName)
+	fmt.Fprint(w, breadcrumbs(projectName))
+	fmt.Fprint(w, "<ol>")
 	for _, branch := range branches {
 		fmt.Fprintf(w, "<li><a href=\"/%s/%s/\">%s</a></li>", projectName, branch, branch)
 	}
+	fmt.Fprint(w, "</ol>")
 }
 
 func branchIndex(w http.ResponseWriter, projectName, branch string) {
@@ -80,10 +83,13 @@ func branchIndex(w http.ResponseWriter, projectName, branch string) {
 		return
 	}
 	w.Header().Add("Content-Type", "text/html;charset=utf-8")
-	fmt.Fprintf(w, "<h1>%s, %s</h1>", projectName, branch)
+	fmt.Fprintf(w, "<h1>%s</h1>", projectName)
+	fmt.Fprint(w, breadcrumbs(projectName, branch))
+	fmt.Fprint(w, "<ol>")
 	for _, v := range versions {
 		fmt.Fprintf(w, "<li><a href=\"/%s/%s/%s\">%s</a></li>", projectName, branch, v, v)
 	}
+	fmt.Fprint(w, "</ol>")
 }
 
 func versionIndex(w http.ResponseWriter, projectName, branch, version string) {
@@ -93,10 +99,13 @@ func versionIndex(w http.ResponseWriter, projectName, branch, version string) {
 		return
 	}
 	w.Header().Add("Content-Type", "text/html;charset=utf-8")
-	fmt.Fprintf(w, "<h1>%s, %s, %s</h1>", projectName, branch, version)
+	fmt.Fprintf(w, "<h1>%s</h1>", projectName)
+	fmt.Fprint(w, breadcrumbs(projectName, branch, version))
+	fmt.Fprint(w, "<ol>")
 	for _, b := range builds {
 		fmt.Fprintf(w, "<li><a href=\"/%s/%s/%s/%s\">%s</a></li>", projectName, branch, version, b, b)
 	}
+	fmt.Fprint(w, "</ol>")
 }
 
 func serveBuild(w http.ResponseWriter, project, branch, version, file string) {
@@ -129,4 +138,16 @@ func isValidName(name string) bool {
 		}
 	}
 	return true
+}
+
+func breadcrumbs(parts ...string) string {
+	b := strings.Builder{}
+	b.WriteString("<nav>")
+	for i, v := range parts[:len(parts)-1] {
+		path := strings.Join(parts[:i+1], "/")
+		b.WriteString("<a href=\"/" + path + "\">" + v + "</a> / ")
+	}
+	b.WriteString(parts[len(parts)-1])
+	b.WriteString("</nav>")
+	return b.String()
 }
