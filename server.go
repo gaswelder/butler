@@ -29,29 +29,75 @@ func serveBuilds() {
 	//     1.1.0-prod
 	//     1.1.0-staging
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		parts := strings.SplitN(r.RequestURI, "/", 3)
-		projectName := parts[1]
-		branch := parts[2]
-		if !isValidName(projectName) || !isValidName(branch) {
-			w.WriteHeader(400)
-			fmt.Fprintf(w, "invalid path")
+		parts := strings.Split(r.RequestURI, "/")
+		if parts[0] == "" {
+			parts = parts[1:]
+		}
+		if len(parts) > 0 && parts[len(parts)-1] == "" {
+			parts = parts[:len(parts)-1]
+		}
+		n := len(parts)
+		if n == 0 {
+			rootPage(w)
 			return
 		}
-
-		builds, err := buildsList(projectName, branch)
-		if err != nil {
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "%s", err.Error())
+		projectName := parts[0]
+		if !isValidName(projectName) {
+			statusPage(w, 400, "Invalid project name")
 			return
 		}
-
-		w.Header().Add("Content-Type", "text/html;charset=utf-8")
-		fmt.Fprintf(w, "<h1>%s, %s</h1>", projectName, branch)
-		for _, build := range builds {
-			fmt.Fprintf(w, "<li>%s", build.url())
+		if n == 1 {
+			projectIndex(w, projectName)
+			return
 		}
+		branch := parts[1]
+		if !isValidName(branch) {
+			statusPage(w, 400, "Invalid branch name: "+branch)
+			return
+		}
+		if n == 2 {
+			branchIndex(w, projectName, branch)
+			return
+		}
+		statusPage(w, 404, "Not found")
 	})
 	http.ListenAndServe(":8080", nil)
+}
+
+func rootPage(w http.ResponseWriter) {
+	statusPage(w, 200, "Nothing here")
+}
+
+func projectIndex(w http.ResponseWriter, projectName string) {
+	dirs, err := ls("projects/" + projectName + "/builds")
+	if err != nil {
+		statusPage(w, 500, err.Error())
+	}
+
+	w.Header().Add("Content-Type", "text/html;charset=utf-8")
+	fmt.Fprintf(w, "<h1>%s branches</h1>", projectName)
+	for _, dir := range dirs {
+		branch := path.Base(dir)
+		fmt.Fprintf(w, "<li><a href=\"/%s/%s/\">%s</a></li>", projectName, branch, branch)
+	}
+}
+
+func branchIndex(w http.ResponseWriter, projectName, branch string) {
+	builds, err := buildsList(projectName, branch)
+	if err != nil {
+		statusPage(w, 500, err.Error())
+		return
+	}
+	w.Header().Add("Content-Type", "text/html;charset=utf-8")
+	fmt.Fprintf(w, "<h1>%s, %s</h1>", projectName, branch)
+	for _, build := range builds {
+		fmt.Fprintf(w, "<li>%s", build.url())
+	}
+}
+
+func statusPage(w http.ResponseWriter, status int, message string) {
+	w.WriteHeader(status)
+	fmt.Fprint(w, message)
 }
 
 // publish publishes the given array of builds on the webserver.
