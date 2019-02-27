@@ -24,7 +24,6 @@ func trackUpdates() {
 		}
 
 		for _, project := range projects {
-			log.Printf("Project: %s", project)
 			err := update(project)
 			if err != nil {
 				log.Fatal(err)
@@ -52,7 +51,6 @@ func update(project string) error {
 	if err != nil {
 		return err
 	}
-	log.Println("branches:", branches)
 
 	for _, branch := range branches {
 		// Builds on previous branches might change the source tree, so
@@ -77,11 +75,11 @@ func update(project string) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("branch: %s, latest source: %s, latest build: %s", branch, latestSourceID, latestBuildID)
+		// If no updates, skip.
 		if latestBuildID == latestSourceID {
-			log.Print("Nothing new, skipping")
 			continue
 		}
+		log.Printf("%s: building branch %s, version %s", project, branch, latestSourceID)
 
 		logger, err := buildLogger(project, branch, latestSourceID)
 		if err != nil {
@@ -103,6 +101,7 @@ func update(project string) error {
 			log.Println(err)
 			continue
 		}
+		log.Printf("%s: saved %v", project, files)
 	}
 
 	return nil
