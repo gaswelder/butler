@@ -10,12 +10,25 @@ import (
 	"strings"
 )
 
+func sourcePath(project string) string {
+	return "projects/" + project + "/src"
+}
+
 func versionsPath(project, branch string) string {
 	return "projects/" + project + "/builds/" + safeString(branch)
 }
 
 func buildsPath(project, branch, version string) string {
 	return versionsPath(project, branch) + "/" + safeString(version)
+}
+
+// listProjects returns the current list of projects.
+func listProjects() ([]string, error) {
+	dirs, err := lsd("projects")
+	if err != nil {
+		return nil, err
+	}
+	return baseNames(dirs), nil
 }
 
 func buildLogger(projectName, branch, sourceID string) (io.WriteCloser, error) {
@@ -31,10 +44,8 @@ func buildFile(project, branch, version, file string) (io.ReadCloser, error) {
 	return os.Open(buildsPath(project, branch, version) + "/" + safeString(file))
 }
 
-// publish publishes the given array of builds on the webserver.
-func publish(projectDir, branch, sourceID string, files []string) error {
-	pubDir := fmt.Sprintf("%s/builds/%s/%s", projectDir, safeString(branch), safeString(sourceID))
-	return copyFiles(files, pubDir)
+func saveBuilds(project, branch, sourceID string, files []string) error {
+	return copyFiles(files, buildsPath(project, branch, sourceID))
 }
 
 func branchesList(projectName string) ([]string, error) {

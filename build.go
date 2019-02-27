@@ -10,14 +10,6 @@ import (
 	"github.com/gaswelder/butler/builders"
 )
 
-type build struct {
-	path string
-}
-
-func (b *build) url() string {
-	return b.path
-}
-
 // trackUpdates continuously updates the projects directory
 // and makes new builds.
 func trackUpdates() {
@@ -32,7 +24,7 @@ func trackUpdates() {
 		}
 
 		for _, project := range projects {
-			log.Printf("Project: %s", project.name)
+			log.Printf("Project: %s", project)
 			err := update(project)
 			if err != nil {
 				log.Fatal(err)
@@ -45,8 +37,8 @@ func trackUpdates() {
 }
 
 // update updates all builds for the given project.
-func update(p *project) error {
-	sourceDir := fmt.Sprintf("%s/src", p.dir)
+func update(project string) error {
+	sourceDir := sourcePath(project)
 
 	g := git{sourceDir: sourceDir}
 
@@ -81,7 +73,7 @@ func update(p *project) error {
 		if err != nil {
 			return err
 		}
-		latestBuildID, err := latestBuildID(p.name, branch)
+		latestBuildID, err := latestBuildID(project, branch)
 		if err != nil {
 			return err
 		}
@@ -91,7 +83,7 @@ func update(p *project) error {
 			continue
 		}
 
-		logger, err := buildLogger(p.name, branch, latestSourceID)
+		logger, err := buildLogger(project, branch, latestSourceID)
 		if err != nil {
 			return err
 		}
@@ -99,14 +91,14 @@ func update(p *project) error {
 		logger.Close()
 
 		if err == nil {
-			err = publish(p.dir, branch, latestSourceID, files)
+			err = saveBuilds(project, branch, latestSourceID, files)
 		}
 		if err != nil {
 			log.Println(err)
 		}
 
 		// Update the latest mark.
-		err = setLatestBuildID(p.name, branch, latestSourceID)
+		err = setLatestBuildID(project, branch, latestSourceID)
 		if err != nil {
 			log.Println(err)
 			continue
