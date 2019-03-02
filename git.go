@@ -30,7 +30,7 @@ func (g git) pull() error {
 }
 
 func (g git) fetch() error {
-	return run(g.sourceDir, "git", "fetch")
+	return run(g.sourceDir, "git", "fetch", "-p")
 }
 
 func (g git) discard() error {
