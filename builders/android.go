@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // AndroidBuilder is a builder for Gradle-based Android projects.
@@ -32,7 +33,13 @@ func (a *AndroidBuilder) Build(output io.Writer) ([]string, error) {
 		return nil, err
 	}
 
-	s, err := os.Open(projectDir + "/app/build/outputs/apk")
+	return findFiles(projectDir+"/app/build/outputs/apk", ".apk")
+}
+
+// Recursively scands the given directory and returns all paths
+// to files having the given suffix.
+func findFiles(dir, suffix string) ([]string, error) {
+	s, err := os.Open(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -43,10 +50,22 @@ func (a *AndroidBuilder) Build(output io.Writer) ([]string, error) {
 		return nil, err
 	}
 
-	paths := make([]string, len(ls))
-	for i, l := range ls {
-		paths[i] = projectDir + "/app/build/outputs/apk/" + l.Name()
+	paths := make([]string, 0)
+	for _, l := range ls {
+		if l.IsDir() {
+			more, err := findFiles(dir+"/"+l.Name(), suffix)
+			if err != nil {
+				return nil, err
+			}
+			paths = append(paths, more...)
+			continue
+		}
+		if strings.HasSuffix(l.Name(), suffix) {
+			paths = append(paths, dir+"/"+l.Name())
+			continue
+		}
 	}
+
 	return paths, nil
 }
 
