@@ -6,14 +6,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/gaswelder/butler/storage"
 )
 
 // serveBuilds spawns an HTTP server that serves all builds for all projects.
 func serveBuilds() {
-	// /projectName/master/
-	//     1.1.0-dev
-	//     1.1.0-prod
-	//     1.1.0-staging
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.RequestURI, "/")
 		if parts[0] == "" {
@@ -60,7 +58,7 @@ func rootPage(w http.ResponseWriter) {
 }
 
 func projectIndex(w http.ResponseWriter, projectName string) {
-	branches, err := branchesList(projectName)
+	branches, err := storage.Branches(projectName)
 	if err != nil {
 		statusPage(w, 500, err.Error())
 		return
@@ -77,7 +75,7 @@ func projectIndex(w http.ResponseWriter, projectName string) {
 }
 
 func branchIndex(w http.ResponseWriter, projectName, branch string) {
-	versions, err := versionsList(projectName, branch)
+	versions, err := storage.Versions(projectName, branch)
 	if err != nil {
 		statusPage(w, 500, "Failed to get versions list: "+err.Error())
 		return
@@ -93,7 +91,7 @@ func branchIndex(w http.ResponseWriter, projectName, branch string) {
 }
 
 func versionIndex(w http.ResponseWriter, projectName, branch, version string) {
-	builds, err := buildsList(projectName, branch, version)
+	builds, err := storage.Builds(projectName, branch, version)
 	if err != nil {
 		statusPage(w, 500, "Failed to get builds list: "+err.Error())
 		return
@@ -109,7 +107,7 @@ func versionIndex(w http.ResponseWriter, projectName, branch, version string) {
 }
 
 func serveBuild(w http.ResponseWriter, project, branch, version, file string) {
-	f, err := buildFile(project, branch, version, file)
+	f, err := storage.Build(project, branch, version, file)
 	if os.IsNotExist(err) {
 		statusPage(w, 404, "Not found")
 		return

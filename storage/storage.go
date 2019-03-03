@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"fmt"
@@ -11,7 +11,8 @@ import (
 	"time"
 )
 
-func sourcePath(project string) string {
+// SourcePath returns path to a project's source directory.
+func SourcePath(project string) string {
 	return "projects/" + project + "/src"
 }
 
@@ -23,8 +24,8 @@ func buildsPath(project, branch, version string) string {
 	return versionsPath(project, branch) + "/" + safeString(version)
 }
 
-// listProjects returns the current list of projects.
-func listProjects() ([]string, error) {
+// ProjectsList returns the current list of projects.
+func ProjectsList() ([]string, error) {
 	dirs, err := lsd("projects")
 	if err != nil {
 		return nil, err
@@ -32,8 +33,9 @@ func listProjects() ([]string, error) {
 	return baseNames(dirs), nil
 }
 
-func buildLogger(projectName, branch, sourceID string) (io.WriteCloser, error) {
-	logPath := versionsPath(projectName, branch) + "/" + safeString(sourceID) + "/build.log"
+// BuildLogger creates and returns a log writer for a build process.
+func BuildLogger(project, branch, version string) (io.WriteCloser, error) {
+	logPath := versionsPath(project, branch) + "/" + safeString(version) + "/build.log"
 	err := os.MkdirAll(path.Dir(logPath), 0777)
 	if err != nil {
 		return nil, err
@@ -41,16 +43,28 @@ func buildLogger(projectName, branch, sourceID string) (io.WriteCloser, error) {
 	return os.Create(logPath)
 }
 
-func buildFile(project, branch, version, file string) (io.ReadCloser, error) {
+// Build returns a reader for a build file.
+func Build(project, branch, version, file string) (io.ReadCloser, error) {
 	return os.Open(buildsPath(project, branch, version) + "/" + safeString(file))
 }
 
-func saveBuilds(project, branch, sourceID string, files []string) error {
-	return copyFiles(files, buildsPath(project, branch, sourceID))
+// SaveBuilds stores build outputs for the given project, branch and version.
+func SaveBuilds(project, branch, version string, files []string) error {
+	err := copyFiles(files, buildsPath(project, branch, version))
+	if err != nil {
+		return fmt.Errorf("failed to copy files: %v", err)
+	}
+	// Update the latest mark.
+	err = setLatestBuildID(project, branch, version)
+	if err != nil {
+		return fmt.Errorf("failed to update version ID: %v", err)
+	}
+	return nil
 }
 
-func branchesList(projectName string) ([]string, error) {
-	dirs, err := lsd("projects/" + projectName + "/builds")
+// Branches returns a list of project's branches.
+func Branches(project string) ([]string, error) {
+	dirs, err := lsd("projects/" + project + "/builds")
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +76,9 @@ func branchesList(projectName string) ([]string, error) {
 	return branches, nil
 }
 
-func latestBuildID(projectName, branch string) (string, error) {
-	path := fmt.Sprintf("projects/%s/latest-%s", projectName, safeString(branch))
+// LatestVersion returns latest saved version for the given project and branch.
+func LatestVersion(project, branch string) (string, error) {
+	path := fmt.Sprintf("projects/%s/latest-%s", project, safeString(branch))
 	b, err := ioutil.ReadFile(path)
 	if os.IsNotExist(err) {
 		return "(no build)", nil
@@ -87,7 +102,8 @@ func baseNames(paths []string) []string {
 	return names
 }
 
-func versionsList(project, branch string) ([]string, error) {
+// Versions returns a list of build versions.
+func Versions(project, branch string) ([]string, error) {
 	l, err := lsd(versionsPath(project, branch))
 	if err != nil {
 		return nil, err
@@ -95,7 +111,8 @@ func versionsList(project, branch string) ([]string, error) {
 	return baseNames(l), nil
 }
 
-func buildsList(project, branch, version string) ([]string, error) {
+// Builds returns a list of builds.
+func Builds(project, branch, version string) ([]string, error) {
 	files, err := lsf(buildsPath(project, branch, version))
 	if err != nil {
 		return nil, err
@@ -156,7 +173,8 @@ func ls(dir string, filter func(f os.FileInfo) bool) ([]string, error) {
 	return result, nil
 }
 
-func stash(files []string, envName string) ([]string, error) {
+// Stash copies the given files to a temporary place adding envName to their names.
+func Stash(files []string, envName string) ([]string, error) {
 	r := make([]string, len(files))
 	for i, f := range files {
 		nonce := time.Now().UnixNano()

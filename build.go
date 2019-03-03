@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/gaswelder/butler/builders"
+	"github.com/gaswelder/butler/storage"
 )
 
 // trackUpdates continuously updates the projects directory
 // and makes new builds.
 func trackUpdates() {
 	for {
-		projects, err := listProjects()
+		projects, err := storage.ProjectsList()
 		if err != nil {
 			// If something went wrong while trying to get the list of
 			// projects, wait a little before trying again.
@@ -39,7 +40,7 @@ func trackUpdates() {
 
 // update updates all builds for the given project.
 func update(project string) error {
-	sourceDir := sourcePath(project)
+	sourceDir := storage.SourcePath(project)
 
 	g := git{sourceDir: sourceDir}
 
@@ -73,7 +74,7 @@ func update(project string) error {
 		if err != nil {
 			return err
 		}
-		latestBuildID, err := latestBuildID(project, branch)
+		latestBuildID, err := storage.LatestVersion(project, branch)
 		if err != nil {
 			return err
 		}
@@ -83,7 +84,7 @@ func update(project string) error {
 		}
 		log.Printf("%s: building branch %s, version %s", project, branch, latestSourceID)
 
-		logger, err := buildLogger(project, branch, latestSourceID)
+		logger, err := storage.BuildLogger(project, branch, latestSourceID)
 		if err != nil {
 			return err
 		}
@@ -91,18 +92,13 @@ func update(project string) error {
 		logger.Close()
 
 		if err == nil {
-			err = saveBuilds(project, branch, latestSourceID, files)
+			err = storage.SaveBuilds(project, branch, latestSourceID, files)
 		}
-		if err != nil {
-			log.Println(err)
-		}
-
-		// Update the latest mark.
-		err = setLatestBuildID(project, branch, latestSourceID)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
+
 		log.Printf("%s: saved %v", project, files)
 	}
 
@@ -174,7 +170,7 @@ func runBuilds(sourceDir string, logger io.Writer) ([]string, error) {
 				return nil, err
 			}
 			// stash the files somewhere before they get deleted by the next build.
-			s, err := stash(files, envName)
+			s, err := storage.Stash(files, envName)
 			if err != nil {
 				return nil, err
 			}
