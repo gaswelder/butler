@@ -103,15 +103,21 @@ func update(project string) error {
 	return nil
 }
 
+type versionConfig struct {
+	Env map[string]string `json:"env"`
+}
+
 type sourceConfig struct {
-	Env map[string]map[string]string `json:"env"`
+	Versions map[string]versionConfig `json:"versions"`
 }
 
 func config(sourceDir string) (*sourceConfig, error) {
 	cfg := &sourceConfig{
-		Env: map[string]map[string]string{
+		Versions: map[string]versionConfig{
 			"dev": {
-				"BUTLER_ENV": "dev",
+				Env: map[string]string{
+					"BUTLER_ENV": "dev",
+				},
 			},
 		},
 	}
@@ -162,8 +168,8 @@ func runBuilds(sourceDir string, logger io.Writer) ([]string, error) {
 
 	allFiles := make([]string, 0)
 	for _, builder := range bs {
-		for envName, vars := range cfg.Env {
-			files, err := builder.Build(logger, append(os.Environ(), toEnvList(vars)...))
+		for envName, versionCfg := range cfg.Versions {
+			files, err := builder.Build(logger, append(os.Environ(), toEnvList(versionCfg.Env)...))
 			if err != nil {
 				return nil, err
 			}
