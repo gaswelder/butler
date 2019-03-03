@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"time"
 )
 
 func sourcePath(project string) string {
@@ -155,13 +156,35 @@ func ls(dir string, filter func(f os.FileInfo) bool) ([]string, error) {
 	return result, nil
 }
 
+func stash(files []string, envName string) ([]string, error) {
+	r := make([]string, len(files))
+	for i, f := range files {
+		nonce := time.Now().UnixNano()
+		stashPath := fmt.Sprintf("./tmp/%d/%s-%s", nonce, envName, path.Base(f))
+		err := os.MkdirAll(path.Dir(stashPath), 0777)
+		if err != nil {
+			return nil, err
+		}
+		err = copyFile(f, stashPath)
+		if err != nil {
+			return nil, err
+		}
+		r[i] = stashPath
+	}
+	return r, nil
+}
+
+func copyFile(from, to string) error {
+	return exec.Command("cp", from, to).Run()
+}
+
 func copyFiles(paths []string, to string) error {
 	err := os.MkdirAll(to, 0777)
 	if err != nil {
 		return err
 	}
 	for _, f := range paths {
-		err := exec.Command("cp", f, to+"/"+path.Base(f)).Run()
+		err := copyFile(f, to+"/"+path.Base(f))
 		if err != nil {
 			return err
 		}

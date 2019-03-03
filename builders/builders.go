@@ -8,7 +8,7 @@ import (
 // Builder represents a builder object for a particular kind of project.
 type Builder interface {
 	// Build performs a build and returns a list of output file paths.
-	Build(output io.Writer) ([]string, error)
+	Build(output io.Writer, envVars []string) ([]string, error)
 
 	// Dirname returns the builder's project path.
 	Dirname() string

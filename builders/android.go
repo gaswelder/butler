@@ -20,13 +20,14 @@ func Android(projectDir string) Builder {
 }
 
 // Build builds the project.
-func (a *AndroidBuilder) Build(output io.Writer) ([]string, error) {
+func (a *AndroidBuilder) Build(output io.Writer, envVars []string) ([]string, error) {
 	projectDir := a.projectDir
 
 	cmd := exec.Command("./gradlew", "build")
 	cmd.Dir = projectDir
 	cmd.Stderr = output
 	cmd.Stdout = output
+	cmd.Env = envVars
 
 	err := cmd.Run()
 	if err != nil {

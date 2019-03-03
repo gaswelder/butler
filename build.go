@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -107,6 +109,43 @@ func update(project string) error {
 	return nil
 }
 
+type sourceConfig struct {
+	Env map[string]map[string]string `json:"env"`
+}
+
+func config(sourceDir string) (*sourceConfig, error) {
+	cfg := &sourceConfig{
+		Env: map[string]map[string]string{
+			"dev": {
+				"BUTLER_ENV": "dev",
+			},
+		},
+	}
+
+	// Read butler.json. If no such file, return the default config.
+	data, err := ioutil.ReadFile(sourceDir + "/butler.json")
+	if os.IsNotExist(err) {
+		return cfg, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse butler.json: %v", err)
+	}
+	return cfg, nil
+}
+
+func toEnvList(vars map[string]string) []string {
+	list := make([]string, 0)
+	for k, v := range vars {
+		list = append(list, k+"="+v)
+	}
+	return list
+}
+
 // runBuilds builds everything in the given source directory and returns
 // a list of build outputs.
 func runBuilds(sourceDir string, logger io.Writer) ([]string, error) {
@@ -122,13 +161,25 @@ func runBuilds(sourceDir string, logger io.Writer) ([]string, error) {
 		log.Printf("%s -> %s", builder.Dirname(), builder.Name())
 	}
 
+	cfg, err := config(sourceDir)
+	if err != nil {
+		return nil, err
+	}
+
 	allFiles := make([]string, 0)
 	for _, builder := range bs {
-		files, err := builder.Build(logger)
-		if err != nil {
-			return nil, err
+		for envName, vars := range cfg.Env {
+			files, err := builder.Build(logger, append(os.Environ(), toEnvList(vars)...))
+			if err != nil {
+				return nil, err
+			}
+			// stash the files somewhere before they get deleted by the next build.
+			s, err := stash(files, envName)
+			if err != nil {
+				return nil, err
+			}
+			allFiles = append(allFiles, s...)
 		}
-		allFiles = append(allFiles, files...)
 	}
 	return allFiles, nil
 }

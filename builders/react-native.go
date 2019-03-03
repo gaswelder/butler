@@ -17,13 +17,13 @@ func ReactNative(projectDir string) Builder {
 }
 
 // Build builds the project.
-func (b *ReactNativeBuilder) Build(output io.Writer) ([]string, error) {
+func (b *ReactNativeBuilder) Build(output io.Writer, envVars []string) ([]string, error) {
 	var err error
 	err = npm(b.projectDir, output)
 	if err != nil {
 		return nil, err
 	}
-	paths, err := b.android.Build(output)
+	paths, err := b.android.Build(output, envVars)
 	return paths, err
 }
 
