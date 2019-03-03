@@ -37,6 +37,14 @@ func Find(sourceDir string) (Builder, error) {
 	if ok {
 		return Android(sourceDir), nil
 	}
+
+	ok, err = hasFiles(sourceDir, "butler.sh")
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		return Script(sourceDir), nil
+	}
 	return nil, nil
 }
 
