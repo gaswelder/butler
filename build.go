@@ -56,25 +56,8 @@ func update(project string) error {
 	}
 
 	for _, branch := range branches {
-		// Builds on previous branches might change the source tree, so
-		// we have to do a reset.
-		err := g.discard()
-		if err != nil {
-			return err
-		}
-		err = g.checkout(branch)
-		if err != nil {
-			return err
-		}
-		err = g.pull()
-		if err != nil {
-			return err
-		}
-		latestSourceID, err := g.describe()
-		if err != nil {
-			return err
-		}
-		latestBuildID, err := storage.LatestVersion(project, branch)
+		latestSourceID := branch.desc
+		latestBuildID, err := storage.LatestVersion(project, branch.name)
 		if err != nil {
 			return err
 		}
@@ -84,7 +67,22 @@ func update(project string) error {
 		}
 		log.Printf("%s: building branch %s, version %s", project, branch, latestSourceID)
 
-		logger, err := storage.BuildLogger(project, branch, latestSourceID)
+		// Builds on previous branches might change the source tree, so
+		// we have to do a reset.
+		err = g.discard()
+		if err != nil {
+			return err
+		}
+		err = g.checkout(branch.name)
+		if err != nil {
+			return err
+		}
+		err = g.pull()
+		if err != nil {
+			return err
+		}
+
+		logger, err := storage.BuildLogger(project, branch.name, latestSourceID)
 		if err != nil {
 			return err
 		}
@@ -92,7 +90,7 @@ func update(project string) error {
 		logger.Close()
 
 		if err == nil {
-			err = storage.SaveBuilds(project, branch, latestSourceID, files)
+			err = storage.SaveBuilds(project, branch.name, latestSourceID, files)
 		}
 		if err != nil {
 			log.Println(err)

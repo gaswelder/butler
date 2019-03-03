@@ -112,22 +112,33 @@ func (g git) discard() error {
 	return run(g.sourceDir, "git", "checkout", ".")
 }
 
+type branch struct {
+	name string
+	desc string
+}
+
 // branches returns a list of remote branches in this repository.
-func (g git) branches() ([]string, error) {
+func (g git) branches() ([]branch, error) {
 	lines, err := runOut(g.sourceDir, "git", "branch", "-r")
 	if err != nil {
 		return nil, err
 	}
 
-	names := make([]string, 0)
+	branches := make([]branch, 0)
+
 	for _, line := range lines {
-		if strings.TrimSpace(line) == "" || strings.Index(line, " -> ") > 0 {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.Index(line, " -> ") > 0 {
 			continue
 		}
+		desc, err := g.describe(line)
+		if err != nil {
+			return nil, err
+		}
 		parts := strings.SplitN(line, "/", 2)
-		names = append(names, parts[1])
+		branches = append(branches, branch{name: parts[1], desc: desc})
 	}
-	return names, nil
+	return branches, nil
 }
 
 // checkout checks out the given branch.
@@ -135,9 +146,9 @@ func (g git) checkout(branch string) error {
 	return run(g.sourceDir, "git", "checkout", branch)
 }
 
-// describe returns the output of "git describe" on the current branch.
-func (g git) describe() (string, error) {
-	lines, err := runOut(g.sourceDir, "git", "describe")
+// describe returns the output of "git describe" on the given ref
+func (g git) describe(ref string) (string, error) {
+	lines, err := runOut(g.sourceDir, "git", "describe", ref)
 	if err != nil {
 		return "", err
 	}
