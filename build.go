@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gaswelder/butler/builders"
@@ -41,10 +40,6 @@ func trackUpdates() {
 	}
 }
 
-func branchIsBuildable(branch string) bool {
-	return strings.HasPrefix(branch, "dev") || branch == "master"
-}
-
 // update updates all builds for the given project.
 func update(project string) error {
 	sourceDir := storage.SourcePath(project)
@@ -63,10 +58,6 @@ func update(project string) error {
 	}
 
 	for _, branch := range branches {
-		if !branchIsBuildable(branch.name) {
-			continue
-		}
-
 		latestSourceID := branch.desc
 		latestBuildID, err := storage.LatestVersion(project, branch.name)
 		if err != nil {

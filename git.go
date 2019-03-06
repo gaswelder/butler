@@ -117,6 +117,10 @@ type branch struct {
 	desc string
 }
 
+func branchIsBuildable(branch string) bool {
+	return strings.HasPrefix(branch, "dev") || branch == "master" || branch == "butler"
+}
+
 // branches returns a list of remote branches in this repository.
 func (g git) branches() ([]branch, error) {
 	lines, err := runOut(g.sourceDir, "git", "branch", "-r")
@@ -131,11 +135,19 @@ func (g git) branches() ([]branch, error) {
 		if line == "" || strings.Index(line, " -> ") > 0 {
 			continue
 		}
+
+		// Split "origin/develop" to ["origin", "develop"].
+		parts := strings.SplitN(line, "/", 2)
+
+		// Skip branches that we are not going to build.
+		if !branchIsBuildable(parts[1]) {
+			continue
+		}
 		desc, err := g.describe(line)
 		if err != nil {
 			return nil, err
 		}
-		parts := strings.SplitN(line, "/", 2)
+
 		branches = append(branches, branch{name: parts[1], desc: desc})
 	}
 	return branches, nil
