@@ -11,6 +11,12 @@ import (
 	"time"
 )
 
+// Project represents a project to be built.
+type Project struct {
+	Name string
+	Env  []string
+}
+
 // SourcePath returns path to a project's source directory.
 func SourcePath(project string) string {
 	return "projects/" + project + "/src"
@@ -24,13 +30,44 @@ func buildsPath(project, branch, version string) string {
 	return versionsPath(project, branch) + "/" + safeString(version)
 }
 
-// ProjectsList returns the current list of projects.
-func ProjectsList() ([]string, error) {
+func parseDotEnv(path string) ([]string, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	list := make([]string, 0)
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		list = append(list, line)
+	}
+	return list, nil
+}
+
+// Projects returns the current list of projects.
+func Projects() ([]Project, error) {
 	dirs, err := lsd("projects")
 	if err != nil {
 		return nil, err
 	}
-	return baseNames(dirs), nil
+
+	projects := make([]Project, len(dirs))
+	for i, dir := range dirs {
+		env, err := parseDotEnv(dir + "/.env")
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+
+		projects[i] = Project{
+			Name: path.Base(dir),
+			Env:  env,
+		}
+	}
+	return projects, nil
 }
 
 // BuildLogger creates and returns a log writer for a build process.

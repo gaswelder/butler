@@ -17,7 +17,7 @@ import (
 // and makes new builds.
 func trackUpdates() {
 	for {
-		projects, err := storage.ProjectsList()
+		projects, err := storage.Projects()
 		if err != nil {
 			// If something went wrong while trying to get the list of
 			// projects, wait a little before trying again.
@@ -41,8 +41,8 @@ func trackUpdates() {
 }
 
 // update updates all builds for the given project.
-func update(project string) error {
-	sourceDir := storage.SourcePath(project)
+func update(project storage.Project) error {
+	sourceDir := storage.SourcePath(project.Name)
 
 	g := git{sourceDir: sourceDir}
 
@@ -59,7 +59,7 @@ func update(project string) error {
 
 	for _, branch := range branches {
 		latestSourceID := branch.desc
-		latestBuildID, err := storage.LatestVersion(project, branch.name)
+		latestBuildID, err := storage.LatestVersion(project.Name, branch.name)
 		if err != nil {
 			return err
 		}
@@ -84,15 +84,15 @@ func update(project string) error {
 			return err
 		}
 
-		logger, err := storage.BuildLogger(project, branch.name, latestSourceID)
+		logger, err := storage.BuildLogger(project.Name, branch.name, latestSourceID)
 		if err != nil {
 			return err
 		}
-		files, err := runBuilds(sourceDir, logger)
+		files, err := runBuilds(sourceDir, logger, project.Env)
 		logger.Close()
 
 		if err == nil {
-			err = storage.SaveBuilds(project, branch.name, latestSourceID, files)
+			err = storage.SaveBuilds(project.Name, branch.name, latestSourceID, files)
 			if err == nil {
 				log.Printf("%s: saved %v", project, files)
 			}
@@ -100,7 +100,7 @@ func update(project string) error {
 			log.Printf("%s: build failed: %v", project, err)
 		}
 
-		err = storage.SetLatestBuildID(project, branch.name, latestSourceID)
+		err = storage.SetLatestBuildID(project.Name, branch.name, latestSourceID)
 		if err != nil {
 			log.Println(err)
 		}
@@ -154,7 +154,7 @@ func toEnvList(vars map[string]string) []string {
 
 // runBuilds builds everything in the given source directory and returns
 // a list of build outputs.
-func runBuilds(sourceDir string, logger io.Writer) ([]string, error) {
+func runBuilds(sourceDir string, logger io.Writer, env []string) ([]string, error) {
 	// Get builders for this project.
 	bs, err := detectBuilders(sourceDir)
 	if err != nil {
@@ -175,7 +175,11 @@ func runBuilds(sourceDir string, logger io.Writer) ([]string, error) {
 	allFiles := make([]string, 0)
 	for _, builder := range bs {
 		for envName, versionCfg := range cfg.Versions {
-			files, err := builder.Build(logger, append(os.Environ(), toEnvList(versionCfg.Env)...))
+			// Combine all environment variables in one list.
+			versionEnv := append(os.Environ(), env...)
+			versionEnv = append(versionEnv, toEnvList(versionCfg.Env)...)
+
+			files, err := builder.Build(logger, versionEnv)
 			if err != nil {
 				return nil, err
 			}

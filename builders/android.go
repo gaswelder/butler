@@ -27,12 +27,7 @@ func (a *AndroidBuilder) Build(output io.Writer, envVars []string) ([]string, er
 	cmd.Dir = projectDir
 	cmd.Stderr = output
 	cmd.Stdout = output
-	cmd.Env = append(envVars, []string{
-		"ANDROID_KEYSTORE_FILE=/home/gas/Android/123456.jks",
-		"ANDROID_KEYSTORE_PASSWORD=123456",
-		"ANDROID_KEY_ALIAS=123456",
-		"ANDROID_KEY_PASSWORD=123456",
-	}...)
+	cmd.Env = append(envVars)
 
 	err := cmd.Run()
 	if err != nil {
