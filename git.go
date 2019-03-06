@@ -22,6 +22,7 @@ func run(cwd string, prog string, args ...string) error {
 func runOut(cwd string, prog string, args ...string) ([]string, error) {
 	cmd := exec.Command(prog, args...)
 	cmd.Dir = cwd
+	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
