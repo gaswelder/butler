@@ -30,7 +30,9 @@ func trackUpdates() {
 		for _, project := range projects {
 			err := update(project)
 			if err != nil {
-				log.Fatal(err)
+				log.Printf("failed to update %s: %v", project, err)
+				time.Sleep(60 * time.Second)
+				continue
 			}
 		}
 
@@ -74,7 +76,7 @@ func update(project string) error {
 		if latestBuildID == latestSourceID {
 			continue
 		}
-		log.Printf("%s: building branch %s, version %s", project, branch, latestSourceID)
+		log.Printf("%s: building %s %s", project, branch.name, branch.desc)
 
 		// Builds on previous branches might change the source tree, so
 		// we have to do a reset.
@@ -100,13 +102,17 @@ func update(project string) error {
 
 		if err == nil {
 			err = storage.SaveBuilds(project, branch.name, latestSourceID, files)
-		}
-		if err != nil {
-			log.Println(err)
-			continue
+			if err == nil {
+				log.Printf("%s: saved %v", project, files)
+			}
+		} else {
+			log.Printf("%s: build failed: %v", project, err)
 		}
 
-		log.Printf("%s: saved %v", project, files)
+		err = storage.SetLatestBuildID(project, branch.name, latestSourceID)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	return nil

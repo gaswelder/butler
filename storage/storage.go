@@ -55,7 +55,7 @@ func SaveBuilds(project, branch, version string, files []string) error {
 		return fmt.Errorf("failed to copy files: %v", err)
 	}
 	// Update the latest mark.
-	err = setLatestBuildID(project, branch, version)
+	err = SetLatestBuildID(project, branch, version)
 	if err != nil {
 		return fmt.Errorf("failed to update version ID: %v", err)
 	}
@@ -89,7 +89,8 @@ func LatestVersion(project, branch string) (string, error) {
 	return string(b), nil
 }
 
-func setLatestBuildID(projectName, branch, id string) error {
+// SetLatestBuildID saves the version ID of the latest built source.
+func SetLatestBuildID(projectName, branch, id string) error {
 	path := fmt.Sprintf("projects/%s/latest-%s", projectName, safeString(branch))
 	return ioutil.WriteFile(path, []byte(id), 0666)
 }
