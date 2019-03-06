@@ -160,7 +160,7 @@ func (g git) checkout(branch string) error {
 
 // describe returns the output of "git describe" on the given ref
 func (g git) describe(ref string) (string, error) {
-	lines, err := runOut(g.sourceDir, "git", "describe", ref)
+	lines, err := runOut(g.sourceDir, "git", "describe", "--tags", ref)
 	if err != nil {
 		return "", err
 	}
