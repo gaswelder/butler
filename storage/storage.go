@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"time"
 )
@@ -146,7 +147,9 @@ func Versions(project, branch string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return baseNames(l), nil
+	r := baseNames(l)
+	sort.Sort(sort.Reverse(sort.StringSlice(r)))
+	return r, nil
 }
 
 // Builds returns a list of builds.
@@ -155,7 +158,9 @@ func Builds(project, branch, version string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return baseNames(files), nil
+	r := baseNames(files)
+	sort.Strings(r)
+	return r, nil
 }
 
 func isSafeChar(ch rune) bool {
