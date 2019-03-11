@@ -52,60 +52,84 @@ func update(project storage.Project) error {
 		return err
 	}
 
+	// Build tips of all branches, but also build the latest clean tag.
 	branches, err := g.branches()
 	if err != nil {
 		return err
 	}
+	tags, err := g.tags()
+	if err != nil {
+		return fmt.Errorf("couldn't get tags list: %v", err)
+	}
 
-	for _, branch := range branches {
-		latestSourceID := branch.desc
-		latestBuildID, err := storage.LatestVersion(project.Name, branch.name)
-		if err != nil {
-			return err
-		}
-		// If no updates, skip.
-		if latestBuildID == latestSourceID {
-			continue
-		}
-		log.Printf("%s: building %s %s", project, branch.name, branch.desc)
-
-		// Builds on previous branches might change the source tree, so
-		// we have to do a reset.
-		err = g.discard()
-		if err != nil {
-			return err
-		}
-		err = g.checkout(branch.name)
-		if err != nil {
-			return err
-		}
-		err = g.pull()
-		if err != nil {
-			return err
-		}
-
-		logger, err := storage.BuildLogger(project.Name, branch.name, latestSourceID)
-		if err != nil {
-			return err
-		}
-		files, err := runBuilds(sourceDir, logger, project.Env)
-		logger.Close()
-
-		if err == nil {
-			err = storage.SaveBuilds(project.Name, branch.name, latestSourceID, files)
-			if err == nil {
-				log.Printf("%s: saved %v", project, files)
+	if len(tags) > 0 {
+		tag := tags[len(tags)-1]
+		if !storage.Has(project.Name, storage.ReleasesDirectory, tag) {
+			log.Printf("%s: building %s", project.Name, tag)
+			// Builds on previous branches might change the source tree, so
+			// we have to do a reset.
+			err = g.discard()
+			if err != nil {
+				return err
 			}
-		} else {
-			log.Printf("%s: build failed: %v", project, err)
-		}
-
-		err = storage.SetLatestBuildID(project.Name, branch.name, latestSourceID)
-		if err != nil {
-			log.Println(err)
+			err = g.checkout(tag)
+			if err != nil {
+				return err
+			}
+			err = build(project, storage.ReleasesDirectory, tag)
+			if err != nil {
+				log.Printf("tag build failed: %v", err)
+			}
 		}
 	}
 
+	for _, branch := range branches {
+		if !storage.Has(project.Name, branch.name, branch.desc) {
+			log.Printf("%s: building %s %s", project.Name, branch, branch.desc)
+			// Builds on previous branches might change the source tree, so
+			// we have to do a reset.
+			err = g.discard()
+			if err != nil {
+				return err
+			}
+			err = g.checkout(branch.name)
+			if err != nil {
+				return err
+			}
+
+			err = g.pull()
+			if err != nil {
+				return err
+			}
+			err = build(project, branch.name, branch.desc)
+			if err != nil {
+				log.Printf("branch build failed: %v", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func build(project storage.Project, directory, version string) error {
+	var err error
+
+	sourceDir := storage.SourcePath(project.Name)
+	logger, err := storage.BuildLogger(project.Name, directory, version)
+	if err != nil {
+		return err
+	}
+	files, err := runBuilds(sourceDir, logger, project.Env)
+	logger.Close()
+	if err != nil {
+		return fmt.Errorf("build failed: %v", err)
+	}
+
+	err = storage.SaveBuilds(project.Name, directory, version, files)
+	if err != nil {
+		return fmt.Errorf("failed to save builds: %v", err)
+	}
+	log.Printf("%s: saved %v", project, files)
 	return nil
 }
 

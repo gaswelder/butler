@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// ReleasesDirectory is a special directory where builds with clean tags are stored.
+const ReleasesDirectory = "releases"
+
 // Project represents a project to be built.
 type Project struct {
 	Name string
@@ -29,6 +32,13 @@ func versionsPath(project, branch string) string {
 
 func buildsPath(project, branch, version string) string {
 	return versionsPath(project, branch) + "/" + safeString(version)
+}
+
+// Has returns true if there are saved results for given project, branch and version.
+func Has(project, branch, version string) bool {
+	path := buildsPath(project, branch, version)
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func parseDotEnv(path string) ([]string, error) {
@@ -92,11 +102,6 @@ func SaveBuilds(project, branch, version string, files []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to copy files: %v", err)
 	}
-	// Update the latest mark.
-	err = SetLatestBuildID(project, branch, version)
-	if err != nil {
-		return fmt.Errorf("failed to update version ID: %v", err)
-	}
 	return nil
 }
 
@@ -112,25 +117,6 @@ func Branches(project string) ([]string, error) {
 		branches[i] = path.Base(dir)
 	}
 	return branches, nil
-}
-
-// LatestVersion returns latest saved version for the given project and branch.
-func LatestVersion(project, branch string) (string, error) {
-	path := fmt.Sprintf("projects/%s/latest-%s", project, safeString(branch))
-	b, err := ioutil.ReadFile(path)
-	if os.IsNotExist(err) {
-		return "(no build)", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
-// SetLatestBuildID saves the version ID of the latest built source.
-func SetLatestBuildID(projectName, branch, id string) error {
-	path := fmt.Sprintf("projects/%s/latest-%s", projectName, safeString(branch))
-	return ioutil.WriteFile(path, []byte(id), 0666)
 }
 
 func baseNames(paths []string) []string {

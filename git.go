@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -110,6 +111,10 @@ func (g git) pruneTags() error {
 }
 
 func (g git) discard() error {
+	err := run(g.sourceDir, "git", "clean", "-fd")
+	if err != nil {
+		return err
+	}
 	return run(g.sourceDir, "git", "checkout", ".")
 }
 
@@ -120,6 +125,26 @@ type branch struct {
 
 func branchIsBuildable(branch string) bool {
 	return strings.HasPrefix(branch, "dev") || branch == "master" || branch == "butler"
+}
+
+func (g git) tags() ([]string, error) {
+	lines, err := runOut(g.sourceDir, "git", "tag", "-l", "--sort", "v:refname")
+	if err != nil {
+		return nil, err
+	}
+
+	versions := make([]string, 0)
+	for _, line := range lines {
+		isTag, err := regexp.Match(`^\d+.\d+.\d+(-\d+)?$`, []byte(line))
+		if err != nil {
+			return nil, fmt.Errorf("regexp error: %v", err)
+		}
+		if !isTag {
+			continue
+		}
+		versions = append(versions, line)
+	}
+	return versions, nil
 }
 
 // branches returns a list of remote branches in this repository.
